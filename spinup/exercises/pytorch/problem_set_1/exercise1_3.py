@@ -3,6 +3,7 @@ import itertools
 import numpy as np
 import torch
 from torch.optim import Adam
+from torch.distributions import Normal
 import gym
 import time
 import spinup.algos.pytorch.td3.core as core
@@ -204,37 +205,24 @@ def td3(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
         o, a, r, o2, d = data['obs'], data['act'], data['rew'], data['obs2'], data['done']
 
         # Q-values
-        #######################
-        #                     #
-        #   YOUR CODE HERE    #
-        #                     #
-        #######################
-        # q1 = 
-        # q2 = 
+        q1 = ac.q1(data['obs'], data['act'])
+        q2 = ac.q2(data['obs'], data['act'])
 
         # Target policy smoothing
-        #######################
-        #                     #
-        #   YOUR CODE HERE    #
-        #                     #
-        #######################
+        targ_act1_eps = torch.clamp(Normal(loc=0, scale=target_noise).sample(data['act'].size()), -noise_clip, noise_clip)
+        targ_act2_eps = torch.clamp(Normal(loc=0, scale=target_noise).sample(data['act'].size()), -noise_clip, noise_clip)
+        targ_act1 = torch.clamp(torch.tensor(ac_targ.act(data['obs2'])) + targ_act1_eps, -act_limit, act_limit)
+        targ_act2 = torch.clamp(torch.tensor(ac_targ.act(data['obs2'])) + targ_act2_eps, -act_limit, act_limit)
+        q1_targ = ac_targ.q1(data['obs2'], targ_act1)
+        q2_targ = ac_targ.q2(data['obs2'], targ_act2)
 
         # Target Q-values
-        #######################
-        #                     #
-        #   YOUR CODE HERE    #
-        #                     #
-        #######################
+        y = data['rew'] + gamma*(1-data['done'])*torch.min(q1_targ, q2_targ)
 
         # MSE loss against Bellman backup
-        #######################
-        #                     #
-        #   YOUR CODE HERE    #
-        #                     #
-        #######################
-        # loss_q1 = 
-        # loss_q2 = 
-        # loss_q = 
+        loss_q1 = ((q1-y)**2)
+        loss_q2 = ((q2-y)**2)
+        loss_q = (loss_q1.mean() + loss_q2.mean())
 
         # Useful info for logging
         loss_info = dict(Q1Vals=q1.detach().numpy(),
@@ -244,12 +232,8 @@ def td3(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
 
     # Set up function for computing TD3 pi loss
     def compute_loss_pi(data):
-        #######################
-        #                     #
-        #   YOUR CODE HERE    #
-        #                     #
-        #######################
-        # loss_pi = 
+        q1 = ac.q1(data['obs'], ac.pi(data['obs']))
+        loss_pi = -q1.mean()
         return loss_pi
 
     #=========================================================================#
@@ -330,6 +314,8 @@ def td3(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
         # Until start_steps have elapsed, randomly sample actions
         # from a uniform distribution for better exploration. Afterwards, 
         # use the learned policy (with some noise, via act_noise). 
+        if t == start_steps:
+            print("Switching to exploitation")
         if t > start_steps:
             a = get_action(o, act_noise)
         else:

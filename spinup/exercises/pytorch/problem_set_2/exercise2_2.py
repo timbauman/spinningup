@@ -40,7 +40,7 @@ class BuggedMLPQFunction(nn.Module):
         self.q = mlp([obs_dim + act_dim] + list(hidden_sizes) + [1], activation)
 
     def forward(self, obs, act):
-        return self.q(torch.cat([obs, act], dim=-1))
+        return self.q(torch.cat([obs, act], dim=-1)).squeeze(1)
 
 class BuggedMLPActorCritic(nn.Module):
 

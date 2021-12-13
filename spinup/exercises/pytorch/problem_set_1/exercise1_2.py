@@ -33,12 +33,11 @@ def mlp(sizes, activation, output_activation=nn.Identity):
         (Use an nn.Sequential module.)
 
     """
-    #######################
-    #                     #
-    #   YOUR CODE HERE    #
-    #                     #
-    #######################
-    pass
+    layers = []
+    for i in range(1, len(sizes)):
+        layers.append(nn.Linear(sizes[i-1], sizes[i]))
+        layers.append(activation() if i < len(sizes) - 1 else output_activation())
+    return nn.Sequential(*layers)
 
 class DiagonalGaussianDistribution:
 
@@ -52,12 +51,7 @@ class DiagonalGaussianDistribution:
             A PyTorch Tensor of samples from the diagonal Gaussian distribution with
             mean and log_std given by self.mu and self.log_std.
         """
-        #######################
-        #                     #
-        #   YOUR CODE HERE    #
-        #                     #
-        #######################
-        pass
+        return torch.distributions.Normal(loc=self.mu, scale=torch.exp(self.log_std)).sample()
 
     #================================(Given, ignore)==========================================#
     def log_prob(self, value):
@@ -80,17 +74,12 @@ class MLPGaussianActor(nn.Module):
         independent of observations, initialized to [-0.5, -0.5, ..., -0.5].
         (Make sure it's trainable!)
         """
-        #######################
-        #                     #
-        #   YOUR CODE HERE    #
-        #                     #
-        #######################
-        # self.log_std = 
-        # self.mu_net = 
-        pass 
+        self.log_std = torch.tensor([-0.5]).expand(act_dim).clone()
+        self.mu_net = mlp([obs_dim] + list(hidden_sizes) + [act_dim], activation)
 
     #================================(Given, ignore)==========================================#
     def forward(self, obs, act=None):
+        # import pdb; pdb.set_trace()
         mu = self.mu_net(obs)
         pi = DiagonalGaussianDistribution(mu, self.log_std)
         logp_a = None
